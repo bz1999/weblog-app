@@ -2,9 +2,10 @@ const postsCollection = require("../db").db().collection("posts");
 const ObjectId = require("mongodb").ObjectId;
 const User = require("./User");
 
-const Post = function (data, userid) {
+const Post = function (data, userid, requestedPostId) {
   this.data = data;
   this.userid = userid;
+  this.requestedPostId = requestedPostId;
   this.errors = [];
 };
 
@@ -57,7 +58,47 @@ Post.prototype.create = function () {
   });
 };
 
-Post.reusablePostQuery = function (uniqueOperations, vistorId) {
+Post.prototype.update = function () {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const post = await Post.findSingleById(this.requestedPostId, this.userid);
+      if (post.isVisitorOwner) {
+        // actually update the db
+        const status = await this.actuallyUpdate();
+        resolve(status);
+      } else {
+        reject();
+      }
+    } catch {
+      reject();
+    }
+  });
+};
+
+Post.prototype.actuallyUpdate = function () {
+  return new Promise(async (resolve, reject) => {
+    this.cleanUp();
+    this.validate();
+
+    if (!this.errors.length) {
+      await postsCollection.findOneAndUpdate(
+        { _id: new ObjectId(this.requestedPostId) },
+        {
+          $set: {
+            title: this.data.title,
+            body: this.data.body,
+          },
+        }
+      );
+
+      resolve("success");
+    } else {
+      resolve("failure");
+    }
+  });
+};
+
+Post.reusablePostQuery = function (uniqueOperations, visitorId) {
   return new Promise(async function (resolve, reject) {
     const aggOperations = uniqueOperations.concat([
       {
@@ -83,7 +124,7 @@ Post.reusablePostQuery = function (uniqueOperations, vistorId) {
 
     // clean up author property in each post object
     posts = posts.map(function (post) {
-      post.isVistorOwner = post.author._id.equals(vistorId);
+      post.isVisitorOwner = post.author._id.equals(visitorId);
 
       post.author = {
         username: post.author.username,
@@ -96,7 +137,7 @@ Post.reusablePostQuery = function (uniqueOperations, vistorId) {
   });
 };
 
-Post.findSingleById = function (id, vistorId) {
+Post.findSingleById = function (id, visitorId) {
   return new Promise(async function (resolve, reject) {
     if (typeof id != "string" || !ObjectId.isValid(id)) {
       reject();
@@ -105,7 +146,7 @@ Post.findSingleById = function (id, vistorId) {
 
     let posts = await Post.reusablePostQuery(
       [{ $match: { _id: new ObjectId(id) } }],
-      vistorId
+      visitorId
     );
 
     if (posts.length) {

@@ -25,8 +25,12 @@ app.set("views", "views");
 app.set("view engine", "ejs");
 
 app.use(function (req, res, next) {
+  // make all error and success flash messages available from all requests
+  res.locals.errors = req.flash("errors");
+  res.locals.success = req.flash("success");
+
   // make current user id available on the req object
-  req.vistorId = req.session.user ? req.session.user._id : 0;
+  req.visitorId = req.session.user ? req.session.user._id : 0;
 
   // make user session data available from within view template
   res.locals.user = req.session.user;

@@ -6,7 +6,7 @@
 
     <div class="container py-md-5 container--narrow">
       <%- include('includes/flash') %>
-      <form action="/create-post" method="POST">
+      <form action="/post/<%= post._id %>/edit" method="POST">
         <div class="form-group">
           <label for="post-title" class="text-muted mb-1"><small>Title</small></label>
           <input
@@ -17,6 +17,7 @@
             type="text"
             placeholder=""
             autocomplete="off"
+            value="<%= post.title %>"
           />
         </div>
 
@@ -28,10 +29,12 @@
             id="post-body"
             class="body-content tall-textarea form-control"
             type="text"
-          ></textarea>
+          >
+<%= post.body %></textarea
+          >
         </div>
 
-        <button class="btn btn-primary">Save New Post</button>
+        <button class="btn btn-primary">Save Updates</button>
       </form>
     </div>
 
