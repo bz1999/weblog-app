@@ -24,6 +24,15 @@ app.use(express.static("public"));
 app.set("views", "views");
 app.set("view engine", "ejs");
 
+app.use(function (req, res, next) {
+  // make current user id available on the req object
+  req.vistorId = req.session.user ? req.session.user._id : 0;
+
+  // make user session data available from within view template
+  res.locals.user = req.session.user;
+  next();
+});
+
 app.use("/", router);
 
 // dont listen until db ready, so export the app for db moudle to start it

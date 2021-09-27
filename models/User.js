@@ -6,9 +6,13 @@ const validator = require("validator");
 const bcrypt = require("bcryptjs");
 
 const md5 = require("md5");
-const User = function (data) {
+const User = function (data, getAvatar) {
   this.data = data;
   this.errors = [];
+
+  if (getAvatar) {
+    this.getAvatar();
+  }
 };
 
 User.prototype.cleanUp = function () {
@@ -41,6 +45,7 @@ User.prototype.validate = function () {
       if (!validator.isAlphanumeric(this.data.username)) {
         this.errors.push("Username can only contain letters and numbers.");
       }
+
       if (this.data.username.length < 3) {
         this.errors.push("Username must be at least 3 characters.");
       } else if (this.data.username.length > 30) {
@@ -65,8 +70,8 @@ User.prototype.validate = function () {
     // Check userame and email existence if no previous errors found
     if (!this.errors.length) {
       // mongodb collection findOne returns a promise
-      let usernameExists = await usersColletion.findOne({ username: this.data.username });
-      let emailExists = await usersColletion.findOne({ email: this.data.email });
+      const usernameExists = await usersColletion.findOne({ username: this.data.username });
+      const emailExists = await usersColletion.findOne({ email: this.data.email });
 
       if (usernameExists) {
         this.errors.push("That username is already taken.");
@@ -91,8 +96,12 @@ User.prototype.register = function () {
     if (!this.errors.length) {
       // hash user password, salt example: $2a$10$MkGi13Zp/stXhVnQbSfMwu
       this.data.password = bcrypt.hashSync(this.data.password, 10);
+      // insertOne will overwrite this.data so _id included in the return
       await usersColletion.insertOne(this.data);
-      this.loadAvatar();
+
+      // remove password from the memory
+      delete this.data.password;
+      this.getAvatar();
       resolve();
     } else {
       reject(this.errors);
@@ -110,11 +119,12 @@ User.prototype.login = function () {
           attemptedUser &&
           bcrypt.compareSync(this.data.password, attemptedUser.password)
         ) {
-          // delete password in the memory and get email
+          // remove password from the memory and add email, _id to user data
           delete this.data.password;
           this.data.email = attemptedUser.email;
+          this.data._id = attemptedUser._id;
+          this.getAvatar();
 
-          this.loadAvatar();
           resolve("Congrats.");
         } else {
           reject("Invalid username / password.");
@@ -124,8 +134,36 @@ User.prototype.login = function () {
   });
 };
 
-User.prototype.loadAvatar = function () {
+User.prototype.getAvatar = function () {
   this.avatar = `https://gravatar.com/avatar/${md5(this.data.email)}?s=128`;
+};
+
+User.findByUsername = function (username) {
+  return new Promise(function (resolve, reject) {
+    if (typeof username != "string") {
+      reject();
+      return;
+    }
+
+    usersColletion
+      .findOne({ username: username })
+      .then(function (userDoc) {
+        if (userDoc) {
+          userDoc = new User(userDoc, true);
+          userDoc = {
+            _id: userDoc.data._id,
+            username: userDoc.data.username,
+            avatar: userDoc.avatar,
+          };
+          resolve(userDoc);
+        } else {
+          reject();
+        }
+      })
+      .catch(function () {
+        reject();
+      });
+  });
 };
 
 module.exports = User;
