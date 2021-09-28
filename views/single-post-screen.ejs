@@ -9,7 +9,7 @@
       <div class="d-flex justify-content-between">
         <h2><%= post.title %></h2>
 
-        <% if(post.isVistorOwner) { %>
+        <% if(post.isVisitorOwner) { %>
         <span class="pt-2">
           <a
             href="/post/<%= post._id %>/edit"
@@ -19,7 +19,11 @@
             title="Edit"
             ><i class="fas fa-edit"></i
           ></a>
-          <form class="delete-post-form d-inline" action="#" method="POST">
+          <form
+            class="delete-post-form d-inline"
+            action="/post/<%= post._id %>/delete"
+            method="POST"
+          >
             <button
               class="delete-post-button text-danger"
               data-toggle="tooltip"
@@ -41,7 +45,7 @@
         post.createdDate.getFullYear() %>
       </p>
 
-      <div class="body-content"><%= post.body %></div>
+      <div class="body-content"><%- filterUserHTML(post.body) %></div>
     </div>
 
     <%- include('includes/footer') %>
