@@ -1,6 +1,7 @@
 const usersCollection = require("../db").db().collection("users");
 const followsCollection = require("../db").db().collection("follows");
 const ObjectId = require("mongodb").ObjectId;
+const User = require("./User");
 
 const Follow = function (followedUsername, authorId) {
   this.followedUsername = followedUsername;
@@ -86,6 +87,110 @@ Follow.prototype.delete = function () {
       resolve();
     } else {
       reject(this.errors);
+    }
+  });
+};
+
+Follow.getFollowersById = function (id) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let followers = await followsCollection
+        .aggregate([
+          { $match: { followedId: id } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "authorId",
+              foreignField: "_id",
+              as: "userDoc",
+            },
+          },
+          {
+            $project: {
+              username: { $arrayElemAt: ["$userDoc.username", 0] },
+              email: { $arrayElemAt: ["$userDoc.email", 0] },
+            },
+          },
+        ])
+        .toArray();
+
+      followers = followers.map(function (follower) {
+        // create a user
+        const user = new User(follower, true);
+        return {
+          username: follower.username,
+          avatar: user.avatar,
+        };
+      });
+
+      resolve(followers);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+Follow.getFollowingById = function (id) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let following = await followsCollection
+        .aggregate([
+          { $match: { authorId: id } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "followedId",
+              foreignField: "_id",
+              as: "userDoc",
+            },
+          },
+          {
+            $project: {
+              username: { $arrayElemAt: ["$userDoc.username", 0] },
+              email: { $arrayElemAt: ["$userDoc.email", 0] },
+            },
+          },
+        ])
+        .toArray();
+
+      following = following.map(function (followedUser) {
+        // create a user
+        const user = new User(followedUser, true);
+        return {
+          username: followedUser.username,
+          avatar: user.avatar,
+        };
+      });
+
+      resolve(following);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+Follow.countFollowersById = function (id) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const counts = await followsCollection.countDocuments({
+        followedId: id,
+      });
+      resolve(counts);
+    } catch {
+      reject();
+    }
+  });
+};
+
+Follow.countFollowingById = function (id) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const counts = await followsCollection.countDocuments({
+        authorId: id,
+      });
+      resolve(counts);
+    } catch {
+      reject();
     }
   });
 };

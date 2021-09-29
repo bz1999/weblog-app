@@ -60,6 +60,7 @@ app.use(function (req, res, next) {
 
   // make user session data available from within view template
   res.locals.user = req.session.user;
+
   next();
 });
 
