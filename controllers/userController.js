@@ -5,7 +5,6 @@ const Follow = require("../models/Follow");
 exports.home = async function (req, res) {
   if (req.session.user) {
     const posts = await Post.getFeed(req.session.user._id);
-    console.log(posts);
     res.render("home-dashboard", { posts: posts });
   } else {
     res.render("home-guest", {
