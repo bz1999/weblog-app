@@ -3,6 +3,8 @@ const ObjectId = require("mongodb").ObjectId;
 const User = require("./User");
 const sanitizeHTML = require("sanitize-html");
 
+postsCollection.createIndex({ title: "text", body: "text" });
+
 const Post = function (data, userid, requestedPostId) {
   this.data = data;
   this.userid = userid;
@@ -47,7 +49,6 @@ Post.prototype.create = function () {
       postsCollection
         .insertOne(this.data)
         .then((result) => {
-          console.log(result);
           resolve(result.insertedId);
         })
         .catch(() => {
@@ -100,27 +101,29 @@ Post.prototype.actuallyUpdate = function () {
   });
 };
 
-Post.reusablePostQuery = function (uniqueOperations, visitorId) {
+Post.reusablePostQuery = function (uniqueOperations, visitorId, finalOperations = []) {
   return new Promise(async function (resolve, reject) {
-    const aggOperations = uniqueOperations.concat([
-      {
-        $lookup: {
-          from: "users",
-          localField: "author",
-          foreignField: "_id",
-          as: "authorDocument",
+    const aggOperations = uniqueOperations
+      .concat([
+        {
+          $lookup: {
+            from: "users",
+            localField: "author",
+            foreignField: "_id",
+            as: "authorDocument",
+          },
         },
-      },
-      {
-        $project: {
-          title: 1,
-          body: 1,
-          createdDate: 1,
-          authorId: "$author",
-          author: { $arrayElemAt: ["$authorDocument", 0] },
+        {
+          $project: {
+            title: 1,
+            body: 1,
+            createdDate: 1,
+            authorId: "$author",
+            author: { $arrayElemAt: ["$authorDocument", 0] },
+          },
         },
-      },
-    ]);
+      ])
+      .concat(finalOperations);
 
     // Mongodb Aggregation. toArray returns a promise
     let posts = await postsCollection.aggregate(aggOperations).toArray();
@@ -128,6 +131,9 @@ Post.reusablePostQuery = function (uniqueOperations, visitorId) {
     // clean up author property in each post object
     posts = posts.map(function (post) {
       post.isVisitorOwner = post.authorId.equals(visitorId);
+
+      // set undefined is faster than delete
+      post.authorId = undefined;
 
       post.author = {
         username: post.author.username,
@@ -178,6 +184,57 @@ Post.delete = function (postIdToDelete, currentUserId) {
         reject();
       }
     } catch {
+      reject();
+    }
+  });
+};
+
+// Tip
+// Owner
+// LearnWebCode commented on Mar 11
+// Hello everyone, I just pushed a fix to this, found in the following file:
+
+// https://github.com/LearnWebCode/react-course/blob/master/backend-api/models/Post.js
+
+// In the newest version of the MongoDB system itself (local or Atlas Cloud Service, not our NPM package)
+// we don't want to use $sort before $project if we're sorting by a search's textScore.
+// Simply updating the file I linked to above with the latest version will fix this issue.
+
+// If you're seeing other errors related to search and the backend,
+// it's possible you didn't create the indexes properly for the title and body fields.
+
+// Thanks!
+// Brad
+
+// Post.search = function (searchTerm) {
+//   return new Promise(async (resolve, reject) => {
+//     console.log("searchTerm: ", searchTerm);
+//     if (typeof searchTerm == "string") {
+//       try {
+//         const posts = await Post.reusablePostQuery([
+//           { $match: { $text: { $search: searchTerm } } },
+//           { $sort: { score: { $meta: "textScore" } } },
+//         ]);
+//         resolve(posts);
+//       } catch {
+//         reject();
+//       }
+//     } else {
+//       reject();
+//     }
+//   });
+// };
+
+Post.search = function (searchTerm) {
+  return new Promise(async (resolve, reject) => {
+    if (typeof searchTerm == "string") {
+      let posts = await Post.reusablePostQuery(
+        [{ $match: { $text: { $search: searchTerm } } }],
+        undefined,
+        [{ $sort: { score: { $meta: "textScore" } } }]
+      );
+      resolve(posts);
+    } else {
       reject();
     }
   });
