@@ -82,14 +82,13 @@ export default class Search {
       } )</div>
       ${posts
         .map((post) => {
-          const postDate = new Date(post.createdDate);
           return `<a href="/post/${
             post._id
           }" class="list-group-item list-group-item-action">
         <img class="avatar-tiny" src="${post.author.avatar}"> <strong>${post.title}</strong>
-        <span class="text-muted small">by ${
-          post.author.username
-        } on ${postDate.toLocaleDateString("en-AU")}</span>
+        <span class="text-muted small">by ${post.author.username} on ${new Date(
+            post.createdDate
+          ).toLocaleDateString("en-AU")}</span>
       </a>`;
         })
         .join("")}

@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const Post = require("../models/post");
+const Follow = require("../models/Follow");
 
 exports.home = function (req, res) {
   if (req.session.user) {
@@ -86,6 +87,17 @@ exports.ifUserExists = function (req, res, next) {
     });
 };
 
+exports.sharedProfileData = async function (req, res, next) {
+  req.isVisitorsProfile =
+    req.session.user && req.profileUser._id.equals(req.session.user._id);
+
+  req.isFollowing =
+    req.session.user &&
+    (await Follow.isVisitorFollowing(req.profileUser._id, req.visitorId));
+
+  next();
+};
+
 exports.profilePostsScreen = function (req, res) {
   // ask our post model for posts by a certain author id
   Post.findByAuthorId(req.profileUser._id)
@@ -94,6 +106,8 @@ exports.profilePostsScreen = function (req, res) {
         posts: posts,
         profileUsername: req.profileUser.username,
         profileAvatar: req.profileUser.avatar,
+        isVisitorsProfile: req.isVisitorsProfile,
+        isFollowing: req.isFollowing,
       });
     })
     .catch(function () {
