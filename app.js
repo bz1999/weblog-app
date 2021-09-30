@@ -6,6 +6,7 @@ const router = require("./router");
 const flash = require("connect-flash");
 const markdown = require("marked");
 const sanitizeHTML = require("sanitize-html");
+const csrf = require("csurf");
 
 const sessionOptions = session({
   secret: "Javascript fullstack complex-app",
@@ -64,7 +65,26 @@ app.use(function (req, res, next) {
   next();
 });
 
+// csrf
+app.use(csrf());
+app.use(function (req, res, next) {
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
+
 app.use("/", router);
+
+// handle csrf error
+app.use(function (err, req, res, next) {
+  if (err) {
+    if (err.code == "EBADCSRFTOKEN") {
+      req.flash("errors", "Cross site request forgery detected.");
+      req.session.save(() => res.redirect("/"));
+    } else {
+      res.redirect("404");
+    }
+  }
+});
 
 // dont listen until db ready, so export the app for db moudle to start it
 // app.listen(4005);
