@@ -6,6 +6,7 @@ const validator = require("validator");
 const bcrypt = require("bcryptjs");
 
 const md5 = require("md5");
+const { response } = require("express");
 const User = function (data, getAvatar) {
   this.data = data;
   this.errors = [];
@@ -163,6 +164,22 @@ User.findByUsername = function (username) {
       .catch(function () {
         reject();
       });
+  });
+};
+
+User.doesEmailExist = function (email) {
+  return new Promise(async (resolve, reject) => {
+    if (typeof email != "string") {
+      resolve(false);
+      return;
+    }
+
+    const user = await usersColletion.findOne({ email: email });
+    if (user) {
+      resolve(true);
+    } else {
+      resolve(false);
+    }
   });
 };
 

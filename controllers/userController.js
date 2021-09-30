@@ -175,3 +175,18 @@ exports.profileFollowingScreen = async function (req, res) {
     res.render("404");
   }
 };
+
+exports.doesUsernameExist = function (req, res) {
+  User.findByUsername(req.body.username)
+    .then(function () {
+      res.json(true);
+    })
+    .catch(function () {
+      res.json(false);
+    });
+};
+
+exports.doesEmailExist = async function (req, res) {
+  const emailBool = await User.doesEmailExist(req.body.email);
+  res.json(emailBool);
+};
