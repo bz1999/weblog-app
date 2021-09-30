@@ -8,6 +8,14 @@ const markdown = require("marked");
 const sanitizeHTML = require("sanitize-html");
 const csrf = require("csurf");
 
+const app = express();
+
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+
+// use router-api router for /api route
+app.use("/api", require("./router-api"));
+
 const sessionOptions = session({
   secret: "Javascript fullstack complex-app",
   store: MongoStore.create({ client: require("./db") }),
@@ -15,13 +23,10 @@ const sessionOptions = session({
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 * 24 },
 });
-
-const app = express();
-
 app.use(sessionOptions);
+
 app.use(flash());
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+
 app.use(express.static("public"));
 
 app.set("views", "views");

@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const Post = require("../models/post");
 const Follow = require("../models/Follow");
+const jwt = require("jsonwebtoken");
 
 exports.home = async function (req, res) {
   if (req.session.user) {
@@ -189,4 +190,39 @@ exports.doesUsernameExist = function (req, res) {
 exports.doesEmailExist = async function (req, res) {
   const emailBool = await User.doesEmailExist(req.body.email);
   res.json(emailBool);
+};
+
+// api methods below
+
+exports.apiLogin = function (req, res) {
+  const user = new User(req.body);
+  user
+    .login()
+    .then((result) => {
+      res.json(
+        jwt.sign({ _id: user.data._id }, process.env.JWTSECRET, { expiresIn: "1d" })
+      );
+    })
+    .catch((e) => {
+      res.json("Sorry, username and password incorrect");
+    });
+};
+
+exports.apiMustBeLoggedIn = function (req, res, next) {
+  try {
+    req.apiUser = jwt.verify(req.body.token, process.env.JWTSECRET);
+    next();
+  } catch {
+    res.json("Sorry, you must provide a valid token.");
+  }
+};
+
+exports.apiGetPostsByAuthor = async function (req, res) {
+  try {
+    const authorDoc = await User.findByUsername(req.params.username);
+    const posts = await Post.findByAuthorId(authorDoc._id);
+    res.json(posts);
+  } catch {
+    res.json("Sorry, invalid user requested.");
+  }
 };
