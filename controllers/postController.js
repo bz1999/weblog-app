@@ -22,7 +22,7 @@ exports.create = function (req, res) {
 exports.viewSingle = async function (req, res) {
   try {
     const post = await Post.findSingleById(req.params.id, req.visitorId);
-    res.render("single-post-screen", { post: post });
+    res.render("single-post-screen", { post: post, title: post.title });
   } catch (e) {
     res.render("404");
   }

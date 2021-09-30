@@ -68,4 +68,37 @@ app.use("/", router);
 
 // dont listen until db ready, so export the app for db moudle to start it
 // app.listen(4005);
-module.exports = app;
+
+const server = require("http").createServer(app);
+
+const io = require("socket.io")(server);
+
+io.use(function (socket, next) {
+  sessionOptions(socket.request, socket.request.res, next);
+});
+
+io.on("connection", function (socket) {
+  if (socket.request.session.user) {
+    const user = socket.request.session.user;
+
+    // send welcome message and user data the the client
+    socket.emit("welcome", {
+      username: user.username,
+      avatar: user.avatar,
+    });
+
+    // register message event
+    socket.on("chatMessageFromBrowser", function (data) {
+      // io.emit send to all sockets
+      // socket.emit send to this client only
+      // socket.broadcast.emit send to all except this client
+      socket.broadcast.emit("chatMessageFromServer", {
+        message: sanitizeHTML(data.message, { allowedTags: [], allowedAttributes: [] }),
+        username: user.username,
+        avatar: user.avatar,
+      });
+    });
+  }
+});
+
+module.exports = server;
